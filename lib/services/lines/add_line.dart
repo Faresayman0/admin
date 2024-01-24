@@ -42,13 +42,11 @@ class _AddLineState extends State<AddLine> {
             'nameLine': addNameLine.text,
             'priceLine': addPriceLine.text,
           });
-  Navigator.of(context).pushReplacement(
+          Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) {
               return ViewLine(docId: widget.docId);
             }),
           );
-
-        
         }
       } catch (e) {
         showErrorDialog('حدثت مشكلة أثناء إضافة الخط');
@@ -98,25 +96,35 @@ class _AddLineState extends State<AddLine> {
         body: Form(
           key: formstate,
           child: isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.blue,
+                  ),
+                )
               : Column(
                   children: [
                     const SizedBox(height: 20),
-                    CustomTextForm(
-                      hintText: "ادخل اسم الخط",
-                      myController: addNameLine,
-                      validator: (val) {
-                        return val!.isEmpty ? "ادخل الاسم" : null;
-                      },
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: CustomTextForm(
+                        hintText: "ادخل اسم الخط",
+                        myController: addNameLine,
+                        validator: (val) {
+                          return val!.isEmpty ? "ادخل الاسم" : null;
+                        },
+                      ),
                     ),
                     const SizedBox(height: 20),
-                    CustomTextForm(
-                      keyboardType: TextInputType.number,
-                      hintText: "ادخل سعر الخط",
-                      myController: addPriceLine,
-                      validator: (val) {
-                        return val!.isEmpty ? "ادخل السعر" : null;
-                      },
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: CustomTextForm(
+                        keyboardType: TextInputType.number,
+                        hintText: "ادخل سعر الخط",
+                        myController: addPriceLine,
+                        validator: (val) {
+                          return val!.isEmpty ? "ادخل السعر" : null;
+                        },
+                      ),
                     ),
                     const SizedBox(height: 20),
                     CustomButtonAuth(

@@ -198,7 +198,11 @@ class _AddCarState extends State<AddCar> {
         body: Form(
           key: formstate,
           child: isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.blue,
+                  ),
+                )
               : Column(
                   children: [
                     Container(

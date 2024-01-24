@@ -3,9 +3,9 @@
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutterfirebase/components/constant_widget.dart';
 import 'package:flutterfirebase/components/custom_button_auth.dart';
 
-import 'package:flutterfirebase/components/custom_logo.dart';
 import 'package:flutterfirebase/components/text_form.dart';
 import 'package:flutterfirebase/view/veiw_line.dart';
 import 'package:flutterfirebase/view/veiw_statioon.dart';
@@ -30,7 +30,9 @@ class _LogInState extends State<LogIn> {
     return Scaffold(
       body: isLoading
           ? const Center(
-              child: CircularProgressIndicator(),
+              child: CircularProgressIndicator(
+                color: Colors.blue,
+              ),
             )
           : Container(
               padding: const EdgeInsets.all(20),
@@ -45,70 +47,58 @@ class _LogInState extends State<LogIn> {
                         const SizedBox(
                           height: 20,
                         ),
-                        const CustomLogo(),
+                        const ConstantWidget(),
                         const SizedBox(
                           height: 30,
                         ),
-                        const Text(
-                          "login",
-                          style: TextStyle(
-                              fontSize: 30, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(
-                          height: 10,
-                        ),
-                        const Text(
-                          "login to continue using the app",
-                          style: TextStyle(color: Colors.grey),
+                        Center(
+                          child: const Text(
+                            "تسجيل الدخول ",
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                         const SizedBox(
                           height: 20,
                         ),
-                        const Text(
-                          "Email",
-                          style: TextStyle(
-                              fontSize: 30, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(
-                          height: 10,
-                        ),
-                        CustomTextForm(keyboardType:TextInputType.emailAddress ,
-                          hintText: "enter you email",
+                        CustomTextForm(
+                          prefixIcon: Icons.person,
+                          keyboardType: TextInputType.emailAddress,
+                          hintText: " ادخل الحساب ",
                           myController: emailController,
                           validator: (val) {
                             if (val == "") {
-                              return "can't be empty ";
+                              return "لا يمكن ان تكون الخانه فارغة";
                             }
                             return null;
                           },
                         ),
                         const SizedBox(
-                          height: 10,
-                        ),
-                        const Text(
-                          "password",
-                          style: TextStyle(
-                              fontSize: 30, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(
-                          height: 10,
+                          height: 16,
                         ),
                         TextFormField(
                           validator: (val) {
                             if (val == "") {
-                              return "can't be empty ";
+                              return "لا يمكن ان تكون الخانه فارغة";
                             }
                             return null;
                           },
                           controller: passwordController,
                           obscureText: !passwordVisable,
                           keyboardType: TextInputType.emailAddress,
+                          cursorColor: Colors.blue,
                           decoration: InputDecoration(
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.blue),
+                              ),
                               enabledBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                    color: Color(0xFFBDBDBD),
-                                  ),
-                                  borderRadius: BorderRadius.circular(70)),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFBDBDBD),
+                                ),
+                                borderRadius: BorderRadius.circular(70),
+                              ),
                               fillColor: Colors.grey[100],
                               filled: true,
                               suffixIcon: IconButton(
@@ -122,18 +112,21 @@ class _LogInState extends State<LogIn> {
                                         ? Icons.visibility_off
                                         : Icons.visibility,
                                   )),
+                              prefixIcon: Icon(
+                                Icons.lock,
+                                color: Colors.blue,
+                              ),
                               border: OutlineInputBorder(
                                   borderSide: const BorderSide(
                                       color: Colors.grey, width: 5),
                                   borderRadius: BorderRadius.circular(70)),
-                              hintText: "enter password"),
+                              hintText: " ادخل الرقم السري "),
                         ),
                         const SizedBox(
                           height: 20,
                         ),
                         CustomButtonAuth(
-
-                            child: "LogIn",
+                            child: "تسجيل الدخول ",
                             onPressed: () async {
                               if ((formState.currentState!.validate())) {
                                 try {
@@ -159,22 +152,22 @@ class _LogInState extends State<LogIn> {
                                       context: context,
                                       dialogType: DialogType.error,
                                       animType: AnimType.rightSlide,
-                                      desc: 'network-request-failed',
+                                      desc: ' خطأ في الاتصال ',
                                     ).show();
                                   } else if (e.code == 'user-not-found') {
                                     return AwesomeDialog(
                                       context: context,
                                       dialogType: DialogType.error,
                                       animType: AnimType.rightSlide,
-                                      desc: 'No user found for that email',
+                                      desc:
+                                          ' لم يتم العثور على مستخدم بهذا البريد الإلكتروني ',
                                     ).show();
                                   } else if (e.code == 'wrong-password') {
                                     return AwesomeDialog(
                                       context: context,
                                       dialogType: DialogType.error,
                                       animType: AnimType.rightSlide,
-                                      desc:
-                                          'Wrong password provided for that user',
+                                      desc: ' كلمة مرور خاطئة لهذا المستخدم ',
                                     ).show();
                                   }
                                 }

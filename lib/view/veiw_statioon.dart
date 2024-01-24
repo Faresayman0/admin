@@ -69,7 +69,12 @@ class _StationNameState extends State<StationName> {
                 return const ViewComplaint();
               }));
             },
-            label: const Text('رؤية الشكاوي'),
+            label: const Text(
+              'رؤية الشكاوي',
+              style: TextStyle(
+                color: Colors.black,
+              ),
+            ),
             icon: const Icon(Icons.notifications),
           )
         ],
@@ -94,11 +99,13 @@ class _StationNameState extends State<StationName> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(),
+                  CircularProgressIndicator(
+                    color: Colors.blue,
+                  ),
                   SizedBox(
                     height: 5,
                   ),
-                  Text("is loading....."),
+                  Text(" جاري التحميل "),
                 ],
               ),
             )
@@ -139,7 +146,10 @@ class _StationNameState extends State<StationName> {
                             },
                             child: const Text(
                               "رؤية الخطوط التي توجد في ",
-                              style: TextStyle(fontSize: 30),
+                              style: TextStyle(
+                                fontSize: 24,
+                                color: Colors.blue,
+                              ),
                             ),
                           ),
                           Text(

@@ -137,7 +137,10 @@ class _AddStationState extends State<AddStation> {
         body: Form(
           key: formstate,
           child: isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(
+                  child: CircularProgressIndicator(
+                  color: Colors.blue,
+                ))
               : Column(
                   children: [
                     Container(

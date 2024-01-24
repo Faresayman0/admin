@@ -57,7 +57,9 @@ class _ViewComplaintState extends State<ViewComplaint> {
         future: _getUserName(messageData['userId']),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const CircularProgressIndicator();
+            return const CircularProgressIndicator(
+              color: Colors.blue,
+            );
           } else if (snapshot.hasError) {
             return Text('Error: ${snapshot.error}');
           } else {
@@ -101,20 +103,20 @@ class _ViewComplaintState extends State<ViewComplaint> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.blue,
         title: const Text('صفحة الشكاوي'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const SizedBox(height: 16),
             const SizedBox(height: 32),
             const Text(
               'الشكاوي المرسلة',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Expanded(
               child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                 stream: FirebaseFirestore.instance
@@ -130,13 +132,24 @@ class _ViewComplaintState extends State<ViewComplaint> {
                   }
 
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return Center(
+                      child: Container(
+                        height: 50,
+                        width: 60,
+                        child: FittedBox(
+                          child: CircularProgressIndicator(
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ),
+                    );
                   }
 
                   final List<QueryDocumentSnapshot<Map<String, dynamic>>>
                       documents = snapshot.data?.docs ?? [];
 
                   return ListView.builder(
+                    physics: BouncingScrollPhysics(),
                     itemCount: documents.length,
                     itemBuilder: (BuildContext context, int index) {
                       final Map<String, dynamic> messageData =

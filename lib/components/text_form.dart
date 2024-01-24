@@ -7,25 +7,27 @@ class CustomTextForm extends StatelessWidget {
     required this.myController,
     required this.validator,
     this.keyboardType,
+    this.prefixIcon, // Added prefixIcon parameter
   });
 
   final String hintText;
   final TextEditingController myController;
   final String? Function(String?)? validator;
   final TextInputType? keyboardType;
+  final IconData? prefixIcon;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
+      cursorColor: Colors.blue,
       validator: validator,
       controller: myController,
       keyboardType: keyboardType,
       decoration: InputDecoration(
         focusedBorder: OutlineInputBorder(
           borderSide: const BorderSide(
-            color: Color(0xFFBDBDBD),
+            color: Colors.blue,
           ),
-          borderRadius: BorderRadius.circular(70),
         ),
         enabledBorder: OutlineInputBorder(
           borderSide: const BorderSide(
@@ -42,6 +44,15 @@ class CustomTextForm extends StatelessWidget {
           borderRadius: BorderRadius.circular(70),
         ),
         hintText: hintText,
+        prefixIcon: prefixIcon != null
+            ? Padding(
+                padding: const EdgeInsets.all(15.0), // Adjust padding as needed
+                child: Icon(
+                  prefixIcon,
+                  color: Colors.blue, // Set the icon color
+                ),
+              )
+            : null,
       ),
     );
   }

@@ -88,7 +88,9 @@ class _ViewCarsState extends State<ViewCars> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(),
+                  CircularProgressIndicator(
+                    color: Colors.blue,
+                  ),
                   SizedBox(
                     height: 5,
                   ),

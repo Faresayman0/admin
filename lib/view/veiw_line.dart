@@ -173,37 +173,16 @@ class _ViewLineState extends State<ViewLine> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton.extended(
-            backgroundColor: Colors.blue,
-            onPressed: navigateToAddLine,
-            label: const Text('اضافة خط جديد'),
-            icon: const Icon(Icons.add),
-          ),
-          const SizedBox(height: 16),
-          FloatingActionButton.extended(
-            heroTag: 'addLine',
-            backgroundColor: Colors.blue,
-            onPressed: () {
-              Navigator.of(context)
-                  .pushReplacement(MaterialPageRoute(builder: (context) {
-                return const ViewComplaint();
-              }));
-            },
-            label: const Text('رؤية الشكاوي'),
-            icon: const Icon(Icons.notifications),
-          )
-        ],
-      ),
+      floatingActionButton: FloatingButton(context),
       appBar: AppBar(
         backgroundColor: Colors.blue,
         title: FutureBuilder<List<QueryDocumentSnapshot>>(
           future: linesFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const CircularProgressIndicator();
+              return const CircularProgressIndicator(
+                color: Colors.blue,
+              );
             } else if (snapshot.hasError) {
               return Text("Error: ${snapshot.error}");
             } else {
@@ -217,7 +196,9 @@ class _ViewLineState extends State<ViewLine> {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
-              child: CircularProgressIndicator(),
+              child: CircularProgressIndicator(
+                color: Colors.blue,
+              ),
             );
           } else if (snapshot.hasError) {
             return Center(
@@ -225,6 +206,8 @@ class _ViewLineState extends State<ViewLine> {
             );
           } else {
             return GridView.builder(
+              physics: BouncingScrollPhysics(),
+              padding: EdgeInsets.only(top: 6),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 mainAxisExtent: 260,
@@ -237,6 +220,39 @@ class _ViewLineState extends State<ViewLine> {
           }
         },
       ),
+    );
+  }
+
+  Column FloatingButton(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        FloatingActionButton.extended(
+          backgroundColor: Colors.blue,
+          onPressed: navigateToAddLine,
+          label: const Text(
+            'اضافة خط جديد',
+            style: TextStyle(color: Colors.black),
+          ),
+          icon: const Icon(Icons.add),
+        ),
+        const SizedBox(height: 16),
+        FloatingActionButton.extended(
+          heroTag: 'addLine',
+          backgroundColor: Colors.blue,
+          onPressed: () {
+            Navigator.of(context)
+                .pushReplacement(MaterialPageRoute(builder: (context) {
+              return const ViewComplaint();
+            }));
+          },
+          label: const Text(
+            'رؤية الشكاوي',
+            style: TextStyle(color: Colors.black),
+          ),
+          icon: const Icon(Icons.notifications),
+        )
+      ],
     );
   }
 }
