@@ -7,45 +7,61 @@ import 'package:flutterfirebase/view/view_cars.dart';
 class CarNumberInput extends StatelessWidget {
   final TextEditingController controller;
   final String labelText;
-  final String hintText;
   final int maxLength;
-  final TextInputType keyboardtype;
+  final TextInputType keyboardType;
   final FocusNode? nextFocusNode;
+  final bool autofocus;
 
   const CarNumberInput({
-    super.key,
+    Key? key,
     required this.controller,
     required this.labelText,
-    required this.hintText,
     required this.maxLength,
     this.nextFocusNode,
-    required this.keyboardtype,
+    required this.keyboardType,
+    this.autofocus = false,
   });
+
+  void _moveToNextField(FocusNode? focusNode, BuildContext context) {
+    if (focusNode != null) {
+      FocusScope.of(context).requestFocus(focusNode);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: TextFormField(
+        autofocus: autofocus,
         controller: controller,
         maxLength: maxLength,
-        textAlign: TextAlign.center, // Center the text
+        textAlign: TextAlign.center,
         decoration: InputDecoration(
+          focusedBorder: UnderlineInputBorder(
+            borderSide: BorderSide(color: Colors.blue),
+          ),
           labelText: labelText,
-          hintText: hintText,
+          labelStyle: TextStyle(
+            color: Colors.blue,
+            fontSize: 10,
+          ),
         ),
-        keyboardType: keyboardtype,
+        cursorColor: Colors.blue,
+        keyboardType: keyboardType,
         validator: (val) {
           if (val == null || val.trim().isEmpty) {
-            return 'الرجاء إدخال $labelText';
+            return 'الرجاء ادخال $labelText';
           }
           return null;
         },
         onChanged: (value) {
-          // You can add additional logic here if needed
+          if (value.length == maxLength && nextFocusNode != null) {
+            _moveToNextField(nextFocusNode, context);
+          }
         },
         onEditingComplete: () {
           if (nextFocusNode != null) {
-            FocusScope.of(context).requestFocus(nextFocusNode);
+            _moveToNextField(nextFocusNode, context);
           }
         },
         textInputAction:
@@ -57,7 +73,7 @@ class CarNumberInput extends StatelessWidget {
 
 class AddCar extends StatefulWidget {
   const AddCar({
-    super.key,
+    Key? key,
     required this.stationId,
     required this.lineId,
   });
@@ -70,18 +86,54 @@ class AddCar extends StatefulWidget {
 }
 
 class _AddCarState extends State<AddCar> {
-  TextEditingController firstController = TextEditingController();
-  TextEditingController secondController = TextEditingController();
-  TextEditingController thirdController = TextEditingController();
-  TextEditingController digitController = TextEditingController();
+  late TextEditingController firstController;
+  late TextEditingController secondController;
+  late TextEditingController thirdController;
+  late TextEditingController digitController;
 
-  FocusNode secondFocusNode = FocusNode();
-  FocusNode thirdFocusNode = FocusNode();
-  FocusNode digitFocusNode = FocusNode();
+  late FocusNode firstFocusNode;
+  late FocusNode secondFocusNode;
+  late FocusNode thirdFocusNode;
+  late FocusNode digitFocusNode;
 
-  GlobalKey<FormState> formstate = GlobalKey();
-
+  GlobalKey<FormState> formState = GlobalKey();
   bool isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    firstController = TextEditingController();
+    secondController = TextEditingController();
+    thirdController = TextEditingController();
+    digitController = TextEditingController();
+
+    firstFocusNode = FocusNode();
+    secondFocusNode = FocusNode();
+    thirdFocusNode = FocusNode();
+    digitFocusNode = FocusNode();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (mounted && !firstFocusNode.hasFocus) {
+      FocusScope.of(context).requestFocus(firstFocusNode);
+    }
+  }
+
+  @override
+  void dispose() {
+    firstController.dispose();
+    secondController.dispose();
+    thirdController.dispose();
+    digitController.dispose();
+    firstFocusNode.dispose();
+    secondFocusNode.dispose();
+    thirdFocusNode.dispose();
+    digitFocusNode.dispose();
+    super.dispose();
+  }
 
   Future<void> addCar() async {
     CollectionReference carsCollection = FirebaseFirestore.instance
@@ -94,7 +146,7 @@ class _AddCarState extends State<AddCar> {
     CollectionReference allCarsCollection =
         FirebaseFirestore.instance.collection('AllCars');
 
-    if (formstate.currentState!.validate()) {
+    if (formState.currentState!.validate()) {
       try {
         String carNumber =
             '${firstController.text.trim()}${secondController.text.trim()}${thirdController.text.trim()}${digitController.text.trim()}';
@@ -114,9 +166,9 @@ class _AddCarState extends State<AddCar> {
               'timestamp': FieldValue.serverTimestamp(),
             });
 
-            showSuccessDialog('تمت إضافة السيارة بنجاح في المواقف');
+            await showSuccessDialog('تمت السيارة بنجاح');
           } else {
-            showErrorDialog('السيارة موجودة بالفعل في المواقف');
+            await showErrorDialog('السيارة موجودة بالفعل');
           }
         } else {
           await carsCollection.add({
@@ -129,24 +181,10 @@ class _AddCarState extends State<AddCar> {
             'timestamp': FieldValue.serverTimestamp(),
           });
 
-          showSuccessDialog('تمت إضافة السيارة بنجاح في المواقف و AllCars');
+          await showSuccessDialog('تمت اضافة السيارة بنجاح');
         }
-
-        Navigator.pop(context);
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) {
-              return ViewCars(
-                lineId: widget.lineId,
-                stationId: widget.stationId,
-              );
-            },
-          ),
-        );
       } catch (e) {
-        showErrorDialog('حدثت مشكلة أثناء إضافة السيارة');
+        await showErrorDialog('حدثت مشكلة اثناء اضافة السيارة');
       } finally {
         setState(() {
           isLoading = false;
@@ -155,105 +193,155 @@ class _AddCarState extends State<AddCar> {
     }
   }
 
-  void showErrorDialog(String message) {
-    AwesomeDialog(
+  Future<void> showErrorDialog(String message) async {
+    await AwesomeDialog(
       context: context,
       dialogType: DialogType.error,
       animType: AnimType.rightSlide,
       desc: message,
       btnCancelOnPress: () {},
     ).show();
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          return ViewCars(
+            lineId: widget.lineId,
+            stationId: widget.stationId,
+          );
+        },
+      ),
+    );
   }
 
-  void showSuccessDialog(String message) {
-    AwesomeDialog(
+  Future<void> showSuccessDialog(String message) async {
+    await AwesomeDialog(
       context: context,
       dialogType: DialogType.success,
       animType: AnimType.rightSlide,
       desc: message,
       btnOkOnPress: () {},
     ).show();
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          return ViewCars(
+            lineId: widget.lineId,
+            stationId: widget.stationId,
+          );
+        },
+      ),
+    );
   }
 
-  @override
-  void dispose() {
-    firstController.dispose();
-    secondController.dispose();
-    thirdController.dispose();
-    digitController.dispose();
-    secondFocusNode.dispose();
-    thirdFocusNode.dispose();
-    digitFocusNode.dispose();
-    super.dispose();
+  Widget _buildTextField(String labelText, TextEditingController controller,
+      FocusNode focusNode, int maxLength, TextInputType keyboardType,
+      {FocusNode? nextFocusNode}) {
+    return Expanded(
+      child: TextFormField(
+        cursorColor: Colors.blue,
+        controller: controller,
+        textAlign: TextAlign.center,
+        focusNode: focusNode,
+        onChanged: (value) {
+          if (value.length == maxLength && nextFocusNode != null) {
+            _moveToNextField(nextFocusNode);
+          }
+        },
+        decoration: InputDecoration(
+          labelText: labelText,
+          labelStyle: const TextStyle(color: Colors.blue, fontSize: 10),
+          counterText: '',
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          focusedBorder: const OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.blue),
+          ),
+        ),
+        keyboardType: keyboardType,
+        maxLength: maxLength,
+        onEditingComplete: () {
+          if (nextFocusNode != null) {
+            _moveToNextField(nextFocusNode);
+          }
+        },
+        textInputAction:
+            nextFocusNode != null ? TextInputAction.next : TextInputAction.done,
+      ),
+    );
+  }
+
+  void _moveToNextField(FocusNode? focusNode) {
+    if (focusNode != null) {
+      FocusScope.of(context).requestFocus(focusNode);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: Colors.blue,
-          title: const Text("تسجيل دخول لسيارة"),
-        ),
-        body: Form(
-          key: formstate,
-          child: isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(
-                    color: Colors.blue,
-                  ),
-                )
-              : Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      child: Row(
-                        children: [
-                          CarNumberInput(
-                            controller: firstController,
-                            labelText: 'الحرف الأول',
-                            hintText: 'أ',
-                            maxLength: 1,
-                            nextFocusNode: secondFocusNode,
-                            keyboardtype: TextInputType.text,
-                          ),
-                          const SizedBox(width: 8),
-                          CarNumberInput(
-                            controller: secondController,
-                            labelText: 'الحرف الثاني',
-                            hintText: 'ب',
-                            maxLength: 1,
-                            nextFocusNode: thirdFocusNode,
-                            keyboardtype: TextInputType.text,
-                          ),
-                          const SizedBox(width: 8),
-                          CarNumberInput(
-                            controller: thirdController,
-                            labelText: 'الحرف الثالث',
-                            hintText: 'ت',
-                            maxLength: 1,
-                            nextFocusNode: digitFocusNode,
-                            keyboardtype: TextInputType.text,
-                          ),
-                          const SizedBox(width: 8),
-                          CarNumberInput(
-                            keyboardtype: TextInputType.number,
-                            controller: digitController,
-                            labelText: 'الأرقام',
-                            hintText: '123',
-                            maxLength: 3,
-                            nextFocusNode: null,
-                          ),
-                        ],
-                      ),
-                    ),
-                    CustomButtonAuth(
-                      child: "إضافة",
-                      onPressed: addCar,
-                    ),
-                  ],
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.blue,
+        title: const Text("اضافة سيارة"),
+      ),
+      body: Form(
+        key: formState,
+        child: isLoading
+            ? const Center(
+                child: CircularProgressIndicator(
+                  color: Colors.blue,
                 ),
-        ),
+              )
+            : Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        _buildTextField(
+                          'الحرف الاول',
+                          firstController,
+                          firstFocusNode,
+                          1,
+                          TextInputType.text,
+                          nextFocusNode: secondFocusNode,
+                        ),
+                        _buildTextField(
+                          "الحرف الثاني",
+                          secondController,
+                          secondFocusNode,
+                          1,
+                          TextInputType.text,
+                          nextFocusNode: thirdFocusNode,
+                        ),
+                        _buildTextField(
+                          "الحرف الثالث",
+                          thirdController,
+                          thirdFocusNode,
+                          1,
+                          TextInputType.text,
+                          nextFocusNode: digitFocusNode,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildTextField(
+                          "الارقام",
+                          digitController,
+                          digitFocusNode,
+                          3,
+                          TextInputType.number,
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                    ),
+                  ),
+                  CustomButtonAuth(
+                    child: "اضافة السيارة ",
+                    onPressed: addCar,
+                  ),
+                ],
+              ),
       ),
     );
   }

@@ -36,9 +36,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      theme: ThemeData(
-        fontFamily: "LamaSans",
-      ),
+      theme: ThemeData(fontFamily: "LamaSans", primaryColor: Colors.blue),
       builder: (context, widget) {
         return Directionality(
           textDirection: TextDirection.rtl,

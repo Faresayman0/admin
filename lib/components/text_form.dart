@@ -2,19 +2,19 @@ import 'package:flutter/material.dart';
 
 class CustomTextForm extends StatelessWidget {
   const CustomTextForm({
-    super.key,
+    Key? key,
     required this.hintText,
     required this.myController,
     required this.validator,
     this.keyboardType,
-    this.prefixIcon, // Added prefixIcon parameter
+    this.prefixIcon, // Make prefixIcon optional
   });
 
   final String hintText;
   final TextEditingController myController;
   final String? Function(String?)? validator;
   final TextInputType? keyboardType;
-  final IconData? prefixIcon;
+  final IconData? prefixIcon; // Make prefixIcon optional
 
   @override
   Widget build(BuildContext context) {
@@ -46,10 +46,10 @@ class CustomTextForm extends StatelessWidget {
         hintText: hintText,
         prefixIcon: prefixIcon != null
             ? Padding(
-                padding: const EdgeInsets.all(15.0), // Adjust padding as needed
+                padding: const EdgeInsets.all(15.0),
                 child: Icon(
                   prefixIcon,
-                  color: Colors.blue, // Set the icon color
+                  color: Colors.blue,
                 ),
               )
             : null,

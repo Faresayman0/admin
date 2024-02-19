@@ -1,12 +1,14 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
 import 'package:flutterfirebase/view/veiw_line.dart';
 import 'package:flutterfirebase/services/station/add_station.dart';
 import 'package:flutterfirebase/view/view_complaint.dart';
 
 class StationName extends StatefulWidget {
-  const StationName({super.key});
+  const StationName({Key? key}) : super(key: key);
 
   @override
   State<StationName> createState() => _StationNameState();
@@ -15,25 +17,91 @@ class StationName extends StatefulWidget {
 class _StationNameState extends State<StationName> {
   DocumentSnapshot? stationDocument;
   bool isLoading = true;
-
-  getStationName() async {
-    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-        .collection("المواقف")
-        .where("id", isEqualTo: FirebaseAuth.instance.currentUser!.uid)
-        .get();
-
-    if (querySnapshot.docs.isNotEmpty) {
-      stationDocument = querySnapshot.docs.first;
-    }
-
-    isLoading = false;
-    setState(() {});
-  }
+  int totalComplaints = 0;
+  late StreamSubscription<QuerySnapshot<Map<String, dynamic>>>
+      complaintsSubscription;
+  bool newComplaint = false; // Flag to track new complaints
 
   @override
   void initState() {
-    getStationName();
     super.initState();
+    _getStationName();
+    _getTotalComplaints();
+    _listenForComplaints();
+  }
+
+  @override
+  void dispose() {
+    complaintsSubscription.cancel();
+    super.dispose();
+  }
+
+  Future<void> _getStationName() async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection("المواقف")
+          .where("id", isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        stationDocument = querySnapshot.docs.first;
+      }
+
+      setState(() {
+        isLoading = false;
+      });
+    } catch (e) {
+      print("Error fetching station name: $e");
+    }
+  }
+
+  Future<void> _getTotalComplaints() async {
+    try {
+      final complaintSnapshot =
+          await FirebaseFirestore.instance.collection('messages').get();
+
+      setState(() {
+        totalComplaints = complaintSnapshot.size;
+      });
+    } catch (e) {
+      print("Error fetching complaints count: $e");
+    }
+  }
+
+  void _listenForComplaints() {
+    complaintsSubscription = FirebaseFirestore.instance
+        .collection('messages')
+        .snapshots()
+        .listen((QuerySnapshot<Map<String, dynamic>> snapshot) {
+      setState(() {
+        totalComplaints = snapshot.size;
+        newComplaint = snapshot.docChanges.isNotEmpty;
+      });
+    });
+  }
+
+  void _navigateToAddStation() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    await Navigator.of(context).push(MaterialPageRoute(builder: (context) {
+      return const AddStation();
+    }));
+
+    setState(() {
+      isLoading = false;
+    });
+  }
+
+  void _navigateToViewComplaint() {
+    setState(() {
+      newComplaint = false;
+    });
+
+    Navigator.of(context).push(MaterialPageRoute(builder: (context) {
+      return ViewComplaint();
+    }));
   }
 
   @override
@@ -45,38 +113,28 @@ class _StationNameState extends State<StationName> {
           if (stationDocument == null)
             FloatingActionButton.extended(
               backgroundColor: Colors.blue,
-              onPressed: () async {
-                setState(() {
-                  isLoading = true;
-                });
-                await Navigator.of(context)
-                    .push(MaterialPageRoute(builder: (context) {
-                  return const AddStation();
-                }));
-                setState(() {
-                  isLoading = false;
-                });
-              },
+              onPressed: _navigateToAddStation,
               label: const Text('اضافة موقفك'),
               icon: const Icon(Icons.add),
             ),
           const SizedBox(height: 16),
           FloatingActionButton.extended(
-            heroTag: 'addStation',
+            heroTag: 'viewComplaints',
             backgroundColor: Colors.blue,
-            onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute(builder: (context) {
-                return const ViewComplaint();
-              }));
-            },
-            label: const Text(
-              'رؤية الشكاوي',
+            onPressed: _navigateToViewComplaint,
+            label: Text(
+              newComplaint
+                  ? 'شكوى جديدة!'
+                  : 'رؤية الشكاوي وعددهم- $totalComplaints',
               style: TextStyle(
-                color: Colors.black,
+                color: Colors.white,
               ),
             ),
-            icon: const Icon(Icons.notifications),
-          )
+            icon: Icon(
+              newComplaint ? Icons.notifications_active : Icons.notifications,
+              color: Colors.white,
+            ),
+          ),
         ],
       ),
       appBar: AppBar(
@@ -93,7 +151,7 @@ class _StationNameState extends State<StationName> {
           ),
         ],
       ),
-      body: isLoading == true
+      body: isLoading
           ? const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -145,7 +203,7 @@ class _StationNameState extends State<StationName> {
                               );
                             },
                             child: const Text(
-                              "رؤية الخطوط التي توجد في ",
+                              "رؤية الخطوط التي توجد في",
                               style: TextStyle(
                                 fontSize: 24,
                                 color: Colors.blue,

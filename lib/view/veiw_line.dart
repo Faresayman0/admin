@@ -1,15 +1,14 @@
-// Import statements...
-
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutterfirebase/services/lines/add_line.dart';
 import 'package:flutterfirebase/services/lines/edit_line.dart';
 import 'package:flutterfirebase/view/view_cars.dart';
 import 'package:flutterfirebase/view/view_complaint.dart';
 
 class ViewLine extends StatefulWidget {
-  const ViewLine({super.key, required this.docId});
+  const ViewLine({Key? key, required this.docId}) : super(key: key);
 
   final String docId;
 
@@ -20,11 +19,27 @@ class ViewLine extends StatefulWidget {
 class _ViewLineState extends State<ViewLine> {
   late Future<List<QueryDocumentSnapshot>> linesFuture;
   late String stationId;
+  final ScrollController _scrollController = ScrollController();
+  bool _showFloatingButtons = true;
 
   @override
   void initState() {
     super.initState();
     linesFuture = getData();
+
+    _scrollController.addListener(() {
+      if (_scrollController.position.userScrollDirection ==
+          ScrollDirection.forward) {
+        setState(() {
+          _showFloatingButtons = true;
+        });
+      } else if (_scrollController.position.userScrollDirection ==
+          ScrollDirection.reverse) {
+        setState(() {
+          _showFloatingButtons = false;
+        });
+      }
+    });
   }
 
   Future<List<QueryDocumentSnapshot>> getData() async {
@@ -41,7 +56,7 @@ class _ViewLineState extends State<ViewLine> {
         .collection("line")
         .get();
 
-    return querySnapshot.docs;
+    return querySnapshot.docs.toList();
   }
 
   Widget buildGridItem(QueryDocumentSnapshot line) {
@@ -173,57 +188,75 @@ class _ViewLineState extends State<ViewLine> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: FloatingButton(context),
-      appBar: AppBar(
-        backgroundColor: Colors.blue,
-        title: FutureBuilder<List<QueryDocumentSnapshot>>(
+      body: NestedScrollView(
+        controller: _scrollController,
+        headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+          return [
+            SliverAppBar(
+              expandedHeight: 0.0,
+              floating: false,
+              pinned: true,
+              title: Container(
+                padding: EdgeInsets.symmetric(horizontal: 16.0),
+                child: FutureBuilder<List<QueryDocumentSnapshot>>(
+                  future: linesFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const CircularProgressIndicator(
+                        color: Colors.blue,
+                      );
+                    } else if (snapshot.hasError) {
+                      return Text("Error: ${snapshot.error}");
+                    } else {
+                      return Text(
+                        "الخطوط المتاحة: ${snapshot.data!.length}",
+                      );
+                    }
+                  },
+                ),
+              ),
+            ),
+          ];
+        },
+        body: FutureBuilder<List<QueryDocumentSnapshot>>(
           future: linesFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const CircularProgressIndicator(
-                color: Colors.blue,
+              return const Center(
+                child: CircularProgressIndicator(
+                  color: Colors.blue,
+                ),
               );
             } else if (snapshot.hasError) {
-              return Text("Error: ${snapshot.error}");
+              return Center(
+                child: Text("Error: ${snapshot.error}"),
+              );
             } else {
-              return Text("الخطوط المتاحة: ${snapshot.data!.length}");
+              return GridView.builder(
+                physics: BouncingScrollPhysics(),
+                padding: EdgeInsets.only(top: 6),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisExtent: 260,
+                ),
+                itemCount: snapshot.data!.length,
+                itemBuilder: (context, i) {
+                  return buildGridItem(snapshot.data![i]);
+                },
+              );
             }
           },
         ),
       ),
-      body: FutureBuilder<List<QueryDocumentSnapshot>>(
-        future: linesFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(
-                color: Colors.blue,
-              ),
-            );
-          } else if (snapshot.hasError) {
-            return Center(
-              child: Text("Error: ${snapshot.error}"),
-            );
-          } else {
-            return GridView.builder(
-              physics: BouncingScrollPhysics(),
-              padding: EdgeInsets.only(top: 6),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisExtent: 260,
-              ),
-              itemCount: snapshot.data!.length,
-              itemBuilder: (context, i) {
-                return buildGridItem(snapshot.data![i]);
-              },
-            );
-          }
-        },
+      floatingActionButton: AnimatedOpacity(
+        opacity: _showFloatingButtons ? 1.0 : 0.0,
+        duration: Duration(milliseconds: 500),
+        child: _showFloatingButtons ? FloatingButton() : SizedBox(),
       ),
     );
   }
 
-  Column FloatingButton(BuildContext context) {
+  Column FloatingButton() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -232,9 +265,12 @@ class _ViewLineState extends State<ViewLine> {
           onPressed: navigateToAddLine,
           label: const Text(
             'اضافة خط جديد',
-            style: TextStyle(color: Colors.black),
+            style: TextStyle(color: Colors.white),
           ),
-          icon: const Icon(Icons.add),
+          icon: const Icon(
+            Icons.add,
+            color: Colors.white,
+          ),
         ),
         const SizedBox(height: 16),
         FloatingActionButton.extended(
@@ -243,14 +279,17 @@ class _ViewLineState extends State<ViewLine> {
           onPressed: () {
             Navigator.of(context)
                 .pushReplacement(MaterialPageRoute(builder: (context) {
-              return const ViewComplaint();
+              return ViewComplaint();
             }));
           },
           label: const Text(
             'رؤية الشكاوي',
-            style: TextStyle(color: Colors.black),
+            style: TextStyle(color: Colors.white),
           ),
-          icon: const Icon(Icons.notifications),
+          icon: const Icon(
+            Icons.notifications,
+            color: Colors.white,
+          ),
         )
       ],
     );

@@ -7,12 +7,12 @@ import 'package:flutterfirebase/view/view_cars.dart';
 
 class EditCar extends StatefulWidget {
   const EditCar({
-    super.key,
+    Key? key,
     required this.carDocId,
     required this.lineId,
     required this.oldNumberOfCar,
     required this.stationId,
-  });
+  }) : super(key: key);
 
   final String carDocId;
   final String stationId;
@@ -29,9 +29,9 @@ class _EditCarState extends State<EditCar> {
   TextEditingController thirdController = TextEditingController();
   TextEditingController digitController = TextEditingController();
 
-  FocusNode secondFocusNode = FocusNode();
-  FocusNode thirdFocusNode = FocusNode();
-  FocusNode digitFocusNode = FocusNode();
+  late FocusNode secondFocusNode;
+  late FocusNode thirdFocusNode;
+  late FocusNode digitFocusNode;
 
   GlobalKey<FormState> formstate = GlobalKey();
 
@@ -118,13 +118,18 @@ class _EditCarState extends State<EditCar> {
     thirdController.text = widget.oldNumberOfCar.substring(2, 3);
     digitController.text = widget.oldNumberOfCar.substring(3);
 
+    secondFocusNode = FocusNode();
+    thirdFocusNode = FocusNode();
+    digitFocusNode = FocusNode();
+
     secondFocusNode.addListener(() {
-      if (!secondFocusNode.hasFocus) {
+      if (!secondFocusNode.hasFocus && mounted) {
         FocusScope.of(context).requestFocus(thirdFocusNode);
       }
     });
+
     thirdFocusNode.addListener(() {
-      if (!thirdFocusNode.hasFocus) {
+      if (!thirdFocusNode.hasFocus && mounted) {
         FocusScope.of(context).requestFocus(digitFocusNode);
       }
     });
@@ -136,7 +141,7 @@ class _EditCarState extends State<EditCar> {
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.blue,
-          title: const Text("تعديل على نمرة السيارة"),
+          title: const Text("تعديل على رقم السيارة"),
         ),
         body: Form(
           key: formstate,
@@ -155,35 +160,31 @@ class _EditCarState extends State<EditCar> {
                           CarNumberInput(
                             controller: firstController,
                             labelText: 'الحرف الأول',
-                            hintText: 'أ',
                             maxLength: 1,
                             nextFocusNode: secondFocusNode,
-                            keyboardtype: TextInputType.text,
+                            keyboardType: TextInputType.text,
                           ),
                           const SizedBox(width: 8),
                           CarNumberInput(
                             controller: secondController,
                             labelText: 'الحرف الثاني',
-                            hintText: 'ب',
                             maxLength: 1,
                             nextFocusNode: thirdFocusNode,
-                            keyboardtype: TextInputType.text,
+                            keyboardType: TextInputType.text,
                           ),
                           const SizedBox(width: 8),
                           CarNumberInput(
                             controller: thirdController,
                             labelText: 'الحرف الثالث',
-                            hintText: 'ت',
                             maxLength: 1,
                             nextFocusNode: digitFocusNode,
-                            keyboardtype: TextInputType.text,
+                            keyboardType: TextInputType.text,
                           ),
                           const SizedBox(width: 8),
                           CarNumberInput(
-                            keyboardtype: TextInputType.number,
+                            keyboardType: TextInputType.number,
                             controller: digitController,
                             labelText: 'الأرقام',
-                            hintText: '123',
                             maxLength: 3,
                             nextFocusNode: null,
                           ),
@@ -202,13 +203,4 @@ class _EditCarState extends State<EditCar> {
   }
 }
 
-void main() {
-  runApp(const MaterialApp(
-    home: EditCar(
-      carDocId: 'carDocId',
-      stationId: 'stationId',
-      lineId: 'lineId',
-      oldNumberOfCar: 'أبت123',
-    ),
-  ));
-}
+
