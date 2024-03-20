@@ -75,14 +75,12 @@ class _EditCarState extends State<EditCar> {
           });
         }
 
-        print('Car edited successfully');
 
         Navigator.of(context)
             .pushReplacement(MaterialPageRoute(builder: (context) {
           return ViewCars(lineId: widget.lineId, stationId: widget.stationId);
         }));
       } catch (e) {
-        print('Error editing car: $e');
         setState(() {
           isLoading = false;
         });
@@ -185,7 +183,7 @@ class _EditCarState extends State<EditCar> {
                             keyboardType: TextInputType.number,
                             controller: digitController,
                             labelText: 'الأرقام',
-                            maxLength: 3,
+                            maxLength: 4,
                             nextFocusNode: null,
                           ),
                         ],

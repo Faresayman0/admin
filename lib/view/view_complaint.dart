@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -11,7 +12,27 @@ class ViewComplaint extends StatefulWidget {
 
 class _ViewComplaintState extends State<ViewComplaint> {
   TextEditingController addNameController = TextEditingController();
+  late String userId;
   bool isSearching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchUserData();
+  }
+
+  Future<void> fetchUserData() async {
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      if (mounted) {
+        setState(() {
+          userId = user.uid;
+        });
+        print(userId);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +64,7 @@ class _ViewComplaintState extends State<ViewComplaint> {
                       });
                     },
                     decoration: InputDecoration(
-                        hintText: 'ابحث عن موقفك...',
+                        hintText: 'ابحث عن موقفك او نمرة سيارة...',
                         focusedBorder: OutlineInputBorder(
                             borderSide: BorderSide(color: Colors.blue))),
                   ),
@@ -66,7 +87,6 @@ class _ViewComplaintState extends State<ViewComplaint> {
                     AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>>
                         snapshot) {
                   if (snapshot.hasError) {
-                    print("Error: ${snapshot.error}");
                     return Text('Error: ${snapshot.error}');
                   }
 
@@ -86,20 +106,25 @@ class _ViewComplaintState extends State<ViewComplaint> {
 
                   final List<QueryDocumentSnapshot<Map<String, dynamic>>>
                       documents = snapshot.data?.docs ?? [];
-
                   List<Map<String, dynamic>> filteredComplaints = documents
                       .map((QueryDocumentSnapshot<Map<String, dynamic>>
                               document) =>
                           document.data())
                       .where((messageData) {
                     if (addNameController.text.isEmpty) {
-                      return true; // Show all complaints if the search field is empty
+                      return true;
                     } else {
                       return (messageData['startingLocation'] != null &&
+                              messageData['startingLocation'] != '' &&
                               messageData['startingLocation']
                                   .contains(addNameController.text)) ||
                           (messageData['endingLocation'] != null &&
+                              messageData['endingLocation'] != '' &&
                               messageData['endingLocation']
+                                  .contains(addNameController.text)) ||
+                          (messageData['carNumber'] != null &&
+                              messageData['carNumber'] != '' &&
+                              messageData['carNumber']
                                   .contains(addNameController.text));
                     }
                   }).toList();
@@ -153,41 +178,46 @@ class _ViewComplaintState extends State<ViewComplaint> {
             return Text('Error: ${snapshot.error}');
           } else {
             String userName = snapshot.data ?? 'Unknown User';
-            return Card(
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'رقم السيارة: ${messageData['carNumber']}',
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                    Text(
-                      'محتوى الشكوى: ${messageData['complaint']}',
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                    Text(
-                      'ركب  من: ${messageData['startingLocation']}',
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                    Text(
-                      'ذهب الي: ${messageData['endingLocation']}',
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                    Text(
-                      'تاريخ الشكوي: $formattedTime',
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                    Text(
-                      'المستخدم: ${messageData['userName']}',
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                  ],
+            // Check if the current user's ID matches the station ID in the complaint data
+            if (userId == messageData['stationId']) {
+              return Card(
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'رقم السيارة: ${messageData['carNumber']}',
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                      Text(
+                        'محتوى الشكوى: ${messageData['complaint']}',
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                      Text(
+                        'ركب  من موقف: ${messageData['startingLocation']}',
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                      Text(
+                        'خط : ${messageData['endingLocation']}',
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                      Text(
+                        'تاريخ الشكوي: $formattedTime',
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                      Text(
+                        'المستخدم: ${messageData['userName']}',
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            );
+              );
+            } else {
+              return const SizedBox(); // Don't display the complaint
+            }
           }
         },
       );
@@ -215,11 +245,9 @@ class _ViewComplaintState extends State<ViewComplaint> {
       if (userSnapshot.exists) {
         return userSnapshot.data()!['userName'];
       } else {
-        print('User not found for userId: $userId');
         return null;
       }
     } catch (e) {
-      print("Error fetching user data: $e");
       return null;
     }
   }

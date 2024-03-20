@@ -7,19 +7,18 @@ class CustomTextForm extends StatelessWidget {
     required this.myController,
     required this.validator,
     this.keyboardType,
-    this.prefixIcon, // Make prefixIcon optional
+    this.prefixIcon,
   });
 
   final String hintText;
   final TextEditingController myController;
   final String? Function(String?)? validator;
   final TextInputType? keyboardType;
-  final IconData? prefixIcon; // Make prefixIcon optional
+  final IconData? prefixIcon; 
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
-      cursorColor: Colors.blue,
       validator: validator,
       controller: myController,
       keyboardType: keyboardType,

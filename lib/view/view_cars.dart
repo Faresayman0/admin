@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutterfirebase/services/cars/add_cars.dart';
 import 'package:flutterfirebase/services/cars/edit_cars.dart';
 import 'package:flutterfirebase/view/view_complaint.dart';
+import 'package:barcode_scan2/barcode_scan2.dart';
 
 class ViewCars extends StatefulWidget {
   const ViewCars({super.key, required this.lineId, required this.stationId});
@@ -92,21 +93,16 @@ class _ViewCarsState extends State<ViewCars> {
                   ),
                   const SizedBox(height: 16),
                   FloatingActionButton.extended(
-                    heroTag: 'addCar',
-                    backgroundColor: Colors.blue,
-                    onPressed: () {
-                      Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(builder: (context) {
-                        return ViewComplaint();
-                      }));
-                    },
-                    label: const Text('رؤية الشكاوي',
+                    heroTag: 'deleteCarByBarcode',
+                    backgroundColor: Colors.red,
+                    onPressed: _deleteCarByBarcode,
+                    label: const Text('حذف سيارة بالباركود',
                         style: TextStyle(color: Colors.white)),
                     icon: const Icon(
-                      Icons.notifications,
+                      Icons.delete,
                       color: Colors.white,
                     ),
-                  )
+                  ),
                 ],
               )
             : SizedBox(),
@@ -228,5 +224,30 @@ class _ViewCarsState extends State<ViewCars> {
         ],
       ),
     );
+  }
+
+  Future<void> _deleteCarByBarcode() async {
+    try {
+      var result = await BarcodeScanner.scan();
+      if (result.type == ResultType.Barcode) {
+        String barcode = result.rawContent;
+        String carNumber = barcode;
+        await FirebaseFirestore.instance
+            .collection("المواقف")
+            .doc(widget.stationId)
+            .collection("line")
+            .doc(widget.lineId)
+            .collection("car")
+            .where("numberOfCar", isEqualTo: carNumber)
+            .get()
+            .then((QuerySnapshot querySnapshot) {
+          querySnapshot.docs.forEach((doc) async {
+            await doc.reference.delete();
+          });
+        });
+
+        await getData();
+      }
+    } catch (e) {}
   }
 }

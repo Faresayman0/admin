@@ -25,9 +25,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
       if (user == null) {
-        print('User is currently signed out!');
       } else {
-        print('User is signed in!');
       }
     });
     super.initState();
@@ -36,7 +34,13 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      theme: ThemeData(fontFamily: "LamaSans", primaryColor: Colors.blue),
+      theme: ThemeData(
+          fontFamily: "LamaSans",
+          primaryColor: Colors.blue,
+          textSelectionTheme: TextSelectionThemeData(
+              selectionColor: Colors.blue,
+              cursorColor: Colors.blue,
+              selectionHandleColor: Colors.blue)),
       builder: (context, widget) {
         return Directionality(
           textDirection: TextDirection.rtl,

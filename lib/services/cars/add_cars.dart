@@ -1,5 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:barcode_scan2/barcode_scan2.dart'; // استيراد حزمة قراءة الباركود
 import 'package:flutterfirebase/components/custom_button_auth.dart';
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:flutterfirebase/view/view_cars.dart';
@@ -46,7 +48,6 @@ class CarNumberInput extends StatelessWidget {
             fontSize: 10,
           ),
         ),
-        cursorColor: Colors.blue,
         keyboardType: keyboardType,
         validator: (val) {
           if (val == null || val.trim().isEmpty) {
@@ -98,6 +99,7 @@ class _AddCarState extends State<AddCar> {
 
   GlobalKey<FormState> formState = GlobalKey();
   bool isLoading = false;
+  bool isFieldsFilled = false;
 
   @override
   void initState() {
@@ -135,7 +137,34 @@ class _AddCarState extends State<AddCar> {
     super.dispose();
   }
 
+  void _checkFieldsFilled() {
+  setState(() {
+    // التحقق من أن الحقول الأخرى غير فارغة
+    bool areOtherFieldsFilled = secondController.text.isNotEmpty && thirdController.text.isNotEmpty;
+    
+    // التحقق من أن حقل digitController يحتوي على الأقل على رقمين
+    bool isDigitFieldValid = digitController.text.length >= 2;
+
+    // تحديث الحالة بناءً على الشروط أعلاه
+    isFieldsFilled = areOtherFieldsFilled && isDigitFieldValid;
+  });
+}
+
   Future<void> addCar() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    if (secondController.text.isEmpty ||
+        thirdController.text.isEmpty ||
+        digitController.text.isEmpty) {
+      await showErrorDialog('الرجاء ملء جميع الحقول');
+      setState(() {
+        isLoading = false;
+      });
+      return;
+    }
+
     CollectionReference carsCollection = FirebaseFirestore.instance
         .collection('المواقف')
         .doc(widget.stationId)
@@ -151,38 +180,67 @@ class _AddCarState extends State<AddCar> {
         String carNumber =
             '${firstController.text.trim()}${secondController.text.trim()}${thirdController.text.trim()}${digitController.text.trim()}';
 
-        QuerySnapshot existingAllCars = await allCarsCollection
-            .where('numberOfCar', isEqualTo: carNumber)
-            .get();
+        QuerySnapshot stationsSnapshot =
+            await FirebaseFirestore.instance.collection('المواقف').get();
 
-        QuerySnapshot existingCars = await carsCollection
-            .where('numberOfCar', isEqualTo: carNumber)
-            .get();
+        for (QueryDocumentSnapshot stationDoc in stationsSnapshot.docs) {
+          String stationId = stationDoc.id;
 
-        if (existingAllCars.docs.isNotEmpty) {
-          if (existingCars.docs.isEmpty) {
-            await carsCollection.add({
-              'numberOfCar': carNumber,
-              'timestamp': FieldValue.serverTimestamp(),
-            });
+          QuerySnapshot linesSnapshot = await FirebaseFirestore.instance
+              .collection('المواقف')
+              .doc(stationId)
+              .collection('line')
+              .get();
 
-            await showSuccessDialog('تمت السيارة بنجاح');
-          } else {
-            await showErrorDialog('السيارة موجودة بالفعل');
+          for (QueryDocumentSnapshot lineDoc in linesSnapshot.docs) {
+            String lineId = lineDoc.id;
+            QuerySnapshot carsSnapshot = await FirebaseFirestore.instance
+                .collection('المواقف')
+                .doc(stationId)
+                .collection('line')
+                .doc(lineId)
+                .collection('car')
+                .where('numberOfCar', isEqualTo: carNumber)
+                .get();
+
+            if (carsSnapshot.docs.isNotEmpty) {
+              if (stationId == widget.stationId && lineId == widget.lineId) {
+                await showErrorDialog('السيارة موجودة بالفعل');
+                return;
+              } else if (stationId == widget.stationId &&
+                  lineId != widget.lineId) {
+                await showErrorDialog(
+                    'السيارة موجودة في نفس الموقف ولكن في خط آخر');
+                return;
+              } else {
+                await showErrorDialog('السيارة موجودة في موقف آخر');
+                return;
+              }
+            }
           }
-        } else {
-          await carsCollection.add({
-            'numberOfCar': carNumber,
-            'timestamp': FieldValue.serverTimestamp(),
-          });
+        }
 
+        await carsCollection.add({
+          'numberOfCar': carNumber,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+        final querySnapshot = await FirebaseFirestore.instance
+            .collection("AllCars")
+            .where('numberOfCar', isEqualTo: carNumber)
+            .where('stationId',
+                isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+            .get();
+
+        if (querySnapshot.docs.isNotEmpty) {
+        } else {
           await allCarsCollection.add({
             'numberOfCar': carNumber,
             'timestamp': FieldValue.serverTimestamp(),
+            'stationId': FirebaseAuth.instance.currentUser!.uid,
           });
-
-          await showSuccessDialog('تمت اضافة السيارة بنجاح');
         }
+        await showSuccessDialog('تمت اضافة السيارة بنجاح');
       } catch (e) {
         await showErrorDialog('حدثت مشكلة اثناء اضافة السيارة');
       } finally {
@@ -240,7 +298,6 @@ class _AddCarState extends State<AddCar> {
       {FocusNode? nextFocusNode}) {
     return Expanded(
       child: TextFormField(
-        cursorColor: Colors.blue,
         controller: controller,
         textAlign: TextAlign.center,
         focusNode: focusNode,
@@ -248,6 +305,7 @@ class _AddCarState extends State<AddCar> {
           if (value.length == maxLength && nextFocusNode != null) {
             _moveToNextField(nextFocusNode);
           }
+          _checkFieldsFilled();
         },
         decoration: InputDecoration(
           labelText: labelText,
@@ -276,6 +334,44 @@ class _AddCarState extends State<AddCar> {
   void _moveToNextField(FocusNode? focusNode) {
     if (focusNode != null) {
       FocusScope.of(context).requestFocus(focusNode);
+    }
+  }
+
+  Future<void> _scanBarcode() async {
+    setState(() {
+      isLoading = true;
+    });
+    try {
+      var result = await BarcodeScanner.scan();
+      if (result.type == ResultType.Barcode) {
+        String barcode = result.rawContent;
+
+        RegExp regex = RegExp(r'^[\u0600-\u06FF]{2,3}\d{2,4}$');
+        if (!regex.hasMatch(barcode)) {
+          await showErrorDialog('الباركود غير صالح');
+          return;
+        }
+
+        if (barcode.substring(0, 1).isEmpty) {
+          firstController.text = '';
+          secondController.text = barcode.substring(1, 2);
+          thirdController.text = barcode.substring(2, 3);
+          digitController.text = barcode.substring(3);
+        } else {
+          firstController.text = barcode.substring(0, 1);
+          secondController.text = barcode.substring(1, 2);
+          thirdController.text = barcode.substring(2, 3);
+          digitController.text = barcode.substring(3);
+        }
+
+        _checkFieldsFilled();
+        await addCar();
+      }
+    } catch (e) {
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
@@ -329,19 +425,26 @@ class _AddCarState extends State<AddCar> {
                           "الارقام",
                           digitController,
                           digitFocusNode,
-                          3,
+                          4,
                           TextInputType.number,
                         ),
                         const SizedBox(width: 8),
                       ],
                     ),
                   ),
-                  CustomButtonAuth(
-                    child: "اضافة السيارة ",
-                    onPressed: addCar,
-                  ),
+                  if (isFieldsFilled)
+                    CustomButtonAuth(
+                      child: "اضافة السيارة ",
+                      onPressed: addCar,
+                    ),
                 ],
               ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: Colors.blue,
+        onPressed: _scanBarcode,
+        label: Text('الاضافة بالباركود'),
+        icon: Icon(Icons.qr_code_scanner),
       ),
     );
   }

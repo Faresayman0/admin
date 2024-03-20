@@ -20,7 +20,7 @@ class _StationNameState extends State<StationName> {
   int totalComplaints = 0;
   late StreamSubscription<QuerySnapshot<Map<String, dynamic>>>
       complaintsSubscription;
-  bool newComplaint = false; // Flag to track new complaints
+  bool newComplaint = false;
 
   @override
   void initState() {
@@ -28,6 +28,7 @@ class _StationNameState extends State<StationName> {
     _getStationName();
     _getTotalComplaints();
     _listenForComplaints();
+    print(FirebaseAuth.instance.currentUser!.uid);
   }
 
   @override
@@ -57,11 +58,13 @@ class _StationNameState extends State<StationName> {
 
   Future<void> _getTotalComplaints() async {
     try {
-      final complaintSnapshot =
-          await FirebaseFirestore.instance.collection('messages').get();
+      final complaintSnapshot = await FirebaseFirestore.instance
+          .collection('messages')
+          .where('stationId', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+          .get();
 
       setState(() {
-        totalComplaints = complaintSnapshot.size;
+        totalComplaints = complaintSnapshot.docs.length;
       });
     } catch (e) {
       print("Error fetching complaints count: $e");
@@ -71,10 +74,11 @@ class _StationNameState extends State<StationName> {
   void _listenForComplaints() {
     complaintsSubscription = FirebaseFirestore.instance
         .collection('messages')
+        .where('userId', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
         .snapshots()
         .listen((QuerySnapshot<Map<String, dynamic>> snapshot) {
       setState(() {
-        totalComplaints = snapshot.size;
+        totalComplaints = snapshot.docs.length;
         newComplaint = snapshot.docChanges.isNotEmpty;
       });
     });
@@ -123,9 +127,7 @@ class _StationNameState extends State<StationName> {
             backgroundColor: Colors.blue,
             onPressed: _navigateToViewComplaint,
             label: Text(
-              newComplaint
-                  ? 'شكوى جديدة!'
-                  : 'رؤية الشكاوي وعددهم- $totalComplaints',
+              'رؤية الشكاوي ',
               style: TextStyle(
                 color: Colors.white,
               ),
