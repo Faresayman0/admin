@@ -28,7 +28,7 @@ apply plugin: 'com.google.gms.google-services'
 
 android {
     namespace "com.example.flutterfirebase"
-    compileSdkVersion 33
+    compileSdkVersion 34
     ndkVersion "26.1.10909125"
 
     compileOptions {

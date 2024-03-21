@@ -1,11 +1,11 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutterfirebase/view/veiw_line.dart';
 import 'package:flutterfirebase/services/station/add_station.dart';
 import 'package:flutterfirebase/view/view_complaint.dart';
+import 'package:badges/badges.dart' as badges;
 
 class StationName extends StatefulWidget {
   const StationName({Key? key}) : super(key: key);
@@ -57,28 +57,18 @@ class _StationNameState extends State<StationName> {
   }
 
   Future<void> _getTotalComplaints() async {
-    try {
-      final complaintSnapshot = await FirebaseFirestore.instance
-          .collection('messages')
-          .where('stationId', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
-          .get();
-
-      setState(() {
-        totalComplaints = complaintSnapshot.docs.length;
-      });
-    } catch (e) {
-      print("Error fetching complaints count: $e");
-    }
+    // هذه الوظيفة قد لا تكون ضرورية إذا كان _listenForComplaints يتحكم بالعداد
   }
 
   void _listenForComplaints() {
     complaintsSubscription = FirebaseFirestore.instance
         .collection('messages')
-        .where('userId', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+        .where('stationId', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+        .where('isViewed', isEqualTo: false) // فقط الشكاوى التي لم تُشاهد
         .snapshots()
         .listen((QuerySnapshot<Map<String, dynamic>> snapshot) {
       setState(() {
-        totalComplaints = snapshot.docs.length;
+        totalComplaints = snapshot.docs.length; // تحديث عدد الشكاوى
         newComplaint = snapshot.docChanges.isNotEmpty;
       });
     });
@@ -98,9 +88,27 @@ class _StationNameState extends State<StationName> {
     });
   }
 
-  void _navigateToViewComplaint() {
+  void _navigateToViewComplaint() async {
     setState(() {
-      newComplaint = false;
+      isLoading = true;
+    });
+
+    final complaintsQuery = FirebaseFirestore.instance
+        .collection('messages')
+        .where('stationId', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+        .where('isViewed', isEqualTo: false);
+
+    final complaintsSnapshot = await complaintsQuery.get();
+
+    for (var doc in complaintsSnapshot.docs) {
+      await doc.reference.update({'isViewed': true});
+    }
+
+    // إضافة تأخير صغير قبل إعادة تعيين حالة isLoading إلى false
+    await Future.delayed(Duration(milliseconds: 500));
+
+    setState(() {
+      isLoading = false;
     });
 
     Navigator.of(context).push(MaterialPageRoute(builder: (context) {
@@ -111,34 +119,47 @@ class _StationNameState extends State<StationName> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          if (stationDocument == null)
-            FloatingActionButton.extended(
-              backgroundColor: Colors.blue,
-              onPressed: _navigateToAddStation,
-              label: const Text('اضافة موقفك'),
-              icon: const Icon(Icons.add),
+      floatingActionButton: isLoading
+          ? Container()
+          : Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (stationDocument == null)
+                  FloatingActionButton.extended(
+                    backgroundColor: Colors.blue,
+                    onPressed: _navigateToAddStation,
+                    label: const Text('اضافة موقفك'),
+                    icon: const Icon(Icons.add),
+                  ),
+                const SizedBox(height: 16),
+                badges.Badge(
+                  position: badges.BadgePosition.topEnd(top: 0, end: 3),
+                  badgeAnimation: badges.BadgeAnimation.slide(
+                    animationDuration: Duration(seconds: 1),
+                  ),
+                  badgeContent: Text(
+                    totalComplaints.toString(),
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  badgeStyle: badges.BadgeStyle(badgeColor: Colors.red),
+                  child: FloatingActionButton.extended(
+                    heroTag: 'viewComplaints',
+                    backgroundColor: Colors.blue,
+                    onPressed: _navigateToViewComplaint,
+                    icon: Text(
+                      'رؤية الشكاوي ',
+                      style: TextStyle(
+                        color: Colors.white,
+                      ),
+                    ),
+                    label: Icon(
+                      Icons.notifications,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          const SizedBox(height: 16),
-          FloatingActionButton.extended(
-            heroTag: 'viewComplaints',
-            backgroundColor: Colors.blue,
-            onPressed: _navigateToViewComplaint,
-            label: Text(
-              'رؤية الشكاوي ',
-              style: TextStyle(
-                color: Colors.white,
-              ),
-            ),
-            icon: Icon(
-              newComplaint ? Icons.notifications_active : Icons.notifications,
-              color: Colors.white,
-            ),
-          ),
-        ],
-      ),
       appBar: AppBar(
         backgroundColor: Colors.blue,
         title: Text("اسم الموقف: ${stationDocument?["name"] ?? ""}"),
@@ -155,18 +176,8 @@ class _StationNameState extends State<StationName> {
       ),
       body: isLoading
           ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    color: Colors.blue,
-                  ),
-                  SizedBox(
-                    height: 5,
-                  ),
-                  Text(" جاري التحميل "),
-                ],
+              child: CircularProgressIndicator(
+                color: Colors.blue,
               ),
             )
           : GridView.builder(
@@ -193,30 +204,32 @@ class _StationNameState extends State<StationName> {
                       ),
                       Card(
                         elevation: 20,
-                        child: Column(children: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (context) {
-                                  return ViewLine(
-                                    docId: stationDocument?.id ?? "",
-                                  );
-                                }),
-                              );
-                            },
-                            child: const Text(
-                              "رؤية الخطوط التي توجد في",
-                              style: TextStyle(
-                                fontSize: 24,
-                                color: Colors.blue,
+                        child: Column(
+                          children: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (context) {
+                                    return ViewLine(
+                                      docId: stationDocument?.id ?? "",
+                                    );
+                                  }),
+                                );
+                              },
+                              child: const Text(
+                                "رؤية الخطوط التي توجد في",
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  color: Colors.blue,
+                                ),
                               ),
                             ),
-                          ),
-                          Text(
-                            "${stationDocument?["name"] ?? ""}",
-                            style: const TextStyle(fontSize: 34),
-                          ),
-                        ]),
+                            Text(
+                              "${stationDocument?["name"] ?? ""}",
+                              style: const TextStyle(fontSize: 34),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),

@@ -1,11 +1,12 @@
 import 'package:awesome_dialog/awesome_dialog.dart';
+import 'package:barcode_scan2/gen/protos/protos.pbenum.dart';
+import 'package:barcode_scan2/platform_wrapper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutterfirebase/services/lines/add_line.dart';
 import 'package:flutterfirebase/services/lines/edit_line.dart';
 import 'package:flutterfirebase/view/view_cars.dart';
-import 'package:flutterfirebase/view/view_complaint.dart';
 
 class ViewLine extends StatefulWidget {
   const ViewLine({Key? key, required this.docId}) : super(key: key);
@@ -21,7 +22,7 @@ class _ViewLineState extends State<ViewLine> {
   late String stationId;
   final ScrollController _scrollController = ScrollController();
   bool _showFloatingButtons = true;
-
+  bool isLoading = false;
   @override
   void initState() {
     super.initState();
@@ -218,35 +219,41 @@ class _ViewLineState extends State<ViewLine> {
             ),
           ];
         },
-        body: FutureBuilder<List<QueryDocumentSnapshot>>(
-          future: linesFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
+        body: isLoading
+            ? Center(
                 child: CircularProgressIndicator(
-                  color: Colors.blue,
-                ),
-              );
-            } else if (snapshot.hasError) {
-              return Center(
-                child: Text("Error: ${snapshot.error}"),
-              );
-            } else {
-              return GridView.builder(
-                physics: BouncingScrollPhysics(),
-                padding: EdgeInsets.only(top: 6),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisExtent: 260,
-                ),
-                itemCount: snapshot.data!.length,
-                itemBuilder: (context, i) {
-                  return buildGridItem(snapshot.data![i]);
+                color: Colors.blue,
+              ))
+            : FutureBuilder<List<QueryDocumentSnapshot>>(
+                future: linesFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Colors.blue,
+                      ),
+                    );
+                  } else if (snapshot.hasError) {
+                    return Center(
+                      child: Text("Error: ${snapshot.error}"),
+                    );
+                  } else {
+                    return GridView.builder(
+                      physics: BouncingScrollPhysics(),
+                      padding: EdgeInsets.only(top: 6),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisExtent: 260,
+                      ),
+                      itemCount: snapshot.data!.length,
+                      itemBuilder: (context, i) {
+                        return buildGridItem(snapshot.data![i]);
+                      },
+                    );
+                  }
                 },
-              );
-            }
-          },
-        ),
+              ),
       ),
       floatingActionButton: AnimatedOpacity(
         opacity: _showFloatingButtons ? 1.0 : 0.0,
@@ -274,24 +281,215 @@ class _ViewLineState extends State<ViewLine> {
         ),
         const SizedBox(height: 16),
         FloatingActionButton.extended(
-          heroTag: 'addLine',
-          backgroundColor: Colors.blue,
+          heroTag: 'addByBarcode',
+          backgroundColor: Colors.green,
           onPressed: () {
-            Navigator.of(context)
-                .pushReplacement(MaterialPageRoute(builder: (context) {
-              return ViewComplaint();
-            }));
+            _scanBarcodeAndAddCar();
           },
-          label: const Text(
-            'رؤية الشكاوي',
+          label: Text(
+            'الإضافة بالباركود',
             style: TextStyle(color: Colors.white),
           ),
-          icon: const Icon(
-            Icons.notifications,
+          icon: Icon(
+            Icons.qr_code_scanner,
             color: Colors.white,
           ),
-        )
+        ),
+        const SizedBox(height: 16),
+        // زر جديد للحذف بالباركود
+        FloatingActionButton.extended(
+          heroTag: 'deleteByBarcode',
+          backgroundColor: Colors.red,
+          onPressed: () {
+            _deleteCarByBarcode();
+          },
+          label: Text(
+            'الحذف بالباركود',
+            style: TextStyle(color: Colors.white),
+          ),
+          icon: Icon(
+            Icons.delete,
+            color: Colors.white,
+          ),
+        ),
       ],
     );
+  }
+
+ Future<void> _deleteCarByBarcode() async {
+  setState(() {
+    isLoading = true;
+  });
+  try {
+    var result = await BarcodeScanner.scan();
+    if (result.type == ResultType.Barcode) {
+      String barcodeData = result.rawContent;
+      List<String> dataParts = barcodeData.split(',');
+      if (dataParts.length == 2) {
+        String lineName = dataParts[0].trim();
+        String carNumber = dataParts[1].trim();
+
+        // البحث عن الخط بناءً على اسم الخط
+        var lineSnapshot = await FirebaseFirestore.instance
+            .collection("المواقف")
+            .doc(widget.docId)
+            .collection("line")
+            .where("nameLine", isEqualTo: lineName)
+            .get();
+
+        if (lineSnapshot.docs.isNotEmpty) {
+          String lineId = lineSnapshot.docs.first.id;
+
+          // البحث عن السيارة بناءً على رقم السيارة
+          var carSnapshot = await FirebaseFirestore.instance
+              .collection("المواقف")
+              .doc(widget.docId)
+              .collection("line")
+              .doc(lineId)
+              .collection("car")
+              .where("numberOfCar", isEqualTo: carNumber)
+              .get();
+
+          if (carSnapshot.docs.isNotEmpty) {
+            // حذف السيارة
+            await carSnapshot.docs.first.reference.delete();
+            _showDialog("نجاح", "تم حذف السيارة بنجاح.");
+          } else {
+            _showDialog("خطأ", "لم يتم العثور على السيارة لحذفها.");
+          }
+        } else {
+          _showDialog("خطأ", "لم يتم العثور على الخط المحدد.");
+        }
+      } else {
+        _showDialog("خطأ", "بيانات الباركود غير صالحة للحذف.");
+      }
+    }
+  } catch (e) {
+    _showDialog("خطأ", "حدث خطأ أثناء مسح الباركود للحذف: $e.");
+  } finally {
+    setState(() {
+      isLoading = false;
+    });
+  }
+}
+
+  Future<void> _scanBarcodeAndAddCar() async {
+    setState(() {
+      isLoading = true;
+    });
+    try {
+      var result = await BarcodeScanner.scan();
+      if (result.type == ResultType.Barcode) {
+        String barcodeData = result.rawContent;
+        List<String> dataParts = barcodeData.split(',');
+        if (dataParts.length == 2) {
+          String lineName = dataParts[0].trim();
+          String carNumber = dataParts[1].trim();
+
+          // البحث عن الخط الحالي بناءً على اسم الخط
+          var lineSnapshot = await FirebaseFirestore.instance
+              .collection("المواقف")
+              .doc(widget.docId)
+              .collection("line")
+              .where("nameLine", isEqualTo: lineName)
+              .get();
+
+          if (lineSnapshot.docs.isNotEmpty) {
+            String lineId = lineSnapshot.docs.first.id;
+
+            // التحقق من وجود السيارة في الخط الحالي
+            var carInCurrentLineSnapshot = await FirebaseFirestore.instance
+                .collection("المواقف")
+                .doc(widget.docId)
+                .collection("line")
+                .doc(lineId)
+                .collection("car")
+                .where("numberOfCar", isEqualTo: carNumber)
+                .get();
+
+            if (carInCurrentLineSnapshot.docs.isNotEmpty) {
+              _showDialog("خطأ", "السيارة موجودة بالفعل في الخط الحالي.");
+              return;
+            }
+
+            // التحقق من وجود السيارة في خطوط أخرى ضمن نفس الموقف
+            // التحقق من وجود السيارة في خطوط أخرى ضمن نفس الموقف
+            var carInOtherLinesSnapshot = await FirebaseFirestore.instance
+                .collection("المواقف")
+                .doc(widget.docId)
+                .collection("line")
+                .where(FieldPath.documentId,
+                    isNotEqualTo: lineId) // استثناء الخط الحالي من البحث
+                .get();
+
+            bool carFoundInAnotherLine = false;
+            String foundLineName =
+                ""; // متغير جديد لتخزين اسم الخط الذي وُجدت فيه السيارة
+
+            for (var doc in carInOtherLinesSnapshot.docs) {
+              var carsSnapshot = await doc.reference
+                  .collection("car")
+                  .where("numberOfCar", isEqualTo: carNumber)
+                  .get();
+              if (carsSnapshot.docs.isNotEmpty) {
+                carFoundInAnotherLine = true;
+                foundLineName = doc.data()["nameLine"]; // تخزين اسم الخط
+                break;
+              }
+            }
+
+            if (carFoundInAnotherLine) {
+              _showDialog("خطأ",
+                  "السيارة موجودة في نفس الموقف ولكن في خط آخر: $foundLineName."); // استخدام اسم الخط في الرسالة
+              return;
+            }
+
+            // التحقق من وجود السيارة في مواقف أخرى
+            var carInOtherStationsSnapshot = await FirebaseFirestore.instance
+                .collectionGroup('car')
+                .where('numberOfCar', isEqualTo: carNumber)
+                .get();
+
+            if (carInOtherStationsSnapshot.docs.isNotEmpty) {
+              _showDialog("خطأ", "السيارة موجودة في  موقف اخر.");
+              return;
+            }
+
+            await FirebaseFirestore.instance
+                .collection("المواقف")
+                .doc(widget.docId)
+                .collection("line")
+                .doc(lineId)
+                .collection("car")
+                .add({
+              'numberOfCar': carNumber,
+              'timestamp': FieldValue.serverTimestamp(),
+            });
+            _showDialog("نجاح", "تم إضافة السيارة بنجاح إلى الخط: $lineName.");
+          } else {
+            _showDialog("خطأ", "لم يتم العثور على الخط: $lineName.");
+          }
+        } else {
+          _showDialog("خطأ", "بيانات الباركود غير صالحة.");
+        }
+      }
+    } catch (e) {
+      _showDialog("خطأ", "حدث خطأ أثناء مسح الباركود: $e.");
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  void _showDialog(String title, String content) {
+    AwesomeDialog(
+      context: context,
+      dialogType: title == "نجاح" ? DialogType.success : DialogType.error,
+      animType: AnimType.bottomSlide,
+      title: title,
+      desc: content,
+      btnOkOnPress: () {},
+    ).show();
   }
 }
