@@ -316,62 +316,60 @@ class _ViewLineState extends State<ViewLine> {
     );
   }
 
- Future<void> _deleteCarByBarcode() async {
-  setState(() {
-    isLoading = true;
-  });
-  try {
-    var result = await BarcodeScanner.scan();
-    if (result.type == ResultType.Barcode) {
-      String barcodeData = result.rawContent;
-      List<String> dataParts = barcodeData.split(',');
-      if (dataParts.length == 2) {
-        String lineName = dataParts[0].trim();
-        String carNumber = dataParts[1].trim();
+  Future<void> _deleteCarByBarcode() async {
+    setState(() {
+      isLoading = true;
+    });
+    try {
+      var result = await BarcodeScanner.scan();
+      if (result.type == ResultType.Barcode) {
+        String barcodeData = result.rawContent;
+        List<String> dataParts = barcodeData.split(',');
+        if (dataParts.length == 2) {
+          String lineName = dataParts[0].trim();
+          String carNumber = dataParts[1].trim();
 
-        // البحث عن الخط بناءً على اسم الخط
-        var lineSnapshot = await FirebaseFirestore.instance
-            .collection("المواقف")
-            .doc(widget.docId)
-            .collection("line")
-            .where("nameLine", isEqualTo: lineName)
-            .get();
-
-        if (lineSnapshot.docs.isNotEmpty) {
-          String lineId = lineSnapshot.docs.first.id;
-
-          // البحث عن السيارة بناءً على رقم السيارة
-          var carSnapshot = await FirebaseFirestore.instance
+          var lineSnapshot = await FirebaseFirestore.instance
               .collection("المواقف")
               .doc(widget.docId)
               .collection("line")
-              .doc(lineId)
-              .collection("car")
-              .where("numberOfCar", isEqualTo: carNumber)
+              .where("nameLine", isEqualTo: lineName)
               .get();
 
-          if (carSnapshot.docs.isNotEmpty) {
-            // حذف السيارة
-            await carSnapshot.docs.first.reference.delete();
-            _showDialog("نجاح", "تم حذف السيارة بنجاح.");
+          if (lineSnapshot.docs.isNotEmpty) {
+            String lineId = lineSnapshot.docs.first.id;
+
+            var carSnapshot = await FirebaseFirestore.instance
+                .collection("المواقف")
+                .doc(widget.docId)
+                .collection("line")
+                .doc(lineId)
+                .collection("car")
+                .where("numberOfCar", isEqualTo: carNumber)
+                .get();
+
+            if (carSnapshot.docs.isNotEmpty) {
+              // حذف السيارة
+              await carSnapshot.docs.first.reference.delete();
+              _showDialog("نجاح", "تم حذف السيارة بنجاح.");
+            } else {
+              _showDialog("خطأ", "لم يتم العثور على السيارة لحذفها.");
+            }
           } else {
-            _showDialog("خطأ", "لم يتم العثور على السيارة لحذفها.");
+            _showDialog("خطأ", "لم يتم العثور على الخط المحدد.");
           }
         } else {
-          _showDialog("خطأ", "لم يتم العثور على الخط المحدد.");
+          _showDialog("خطأ", "بيانات الباركود غير صالحة للحذف.");
         }
-      } else {
-        _showDialog("خطأ", "بيانات الباركود غير صالحة للحذف.");
       }
+    } catch (e) {
+      _showDialog("خطأ", "حدث خطأ أثناء مسح الباركود للحذف: $e.");
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
-  } catch (e) {
-    _showDialog("خطأ", "حدث خطأ أثناء مسح الباركود للحذف: $e.");
-  } finally {
-    setState(() {
-      isLoading = false;
-    });
   }
-}
 
   Future<void> _scanBarcodeAndAddCar() async {
     setState(() {
@@ -386,7 +384,11 @@ class _ViewLineState extends State<ViewLine> {
           String lineName = dataParts[0].trim();
           String carNumber = dataParts[1].trim();
 
-          // البحث عن الخط الحالي بناءً على اسم الخط
+          RegExp carNumberRegex = RegExp(r'^[\u0600-\u06FF]{2,3}\d{2,4}$');
+          if (!carNumberRegex.hasMatch(carNumber)) {
+            _showDialog("خطأ", "رقم السيارة غير صالح.");
+            return;
+          }
           var lineSnapshot = await FirebaseFirestore.instance
               .collection("المواقف")
               .doc(widget.docId)
